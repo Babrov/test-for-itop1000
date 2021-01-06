@@ -1,26 +1,52 @@
 import { useState, useEffect } from 'react';
+import { timer } from 'rxjs';
+import { first } from 'rxjs/operators';
 import './styles.css';
+
 function App() {
-  const [time, setTime] = useState(0);
+  const interval$ = timer(1000);
+  const [time, setTime] = useState({ sec: 0, min: 0, hr: 0 });
   const [status, setStatus] = useState(false);
+
   useEffect(() => {
     let interval = null;
-    if (status) {
-      interval = setInterval(() => {
-        setTime((prevTime) => prevTime + 1000);
-      }, 1000);
-    } else {
-      clearInterval(interval);
-    }
-    return () => clearInterval(interval);
-  }, [status]);
+    let upSec = time.sec,
+      upMin = time.min,
+      upHr = time.hr;
+    interval = interval$.subscribe(() => {
+      if (status) {
+        upSec++;
+        if (time.sec >= 59) {
+          upMin++;
+          upSec = 0;
+        }
+        if (time.min >= 59) {
+          upHr++;
+          upMin = 0;
+        }
+        setTime({ sec: upSec, min: upMin, hr: upHr });
+      }
+    });
+    return () => interval.unsubscribe();
+  }, [status, time]);
+
+  const waitBtn = () => {
+    let doubleTimer = timer(300);
+    doubleTimer.pipe(first()).subscribe(() => {
+      setStatus(false);
+    });
+  };
+  const zeroFirst = (el) => {
+    return el > 9 ? el : `0${el}`;
+  };
+
   return (
     <div className="App">
       <div className="timer">
         <h1>
-          <span>{('0' + Math.floor(time / 3600000)).slice(-2)}:</span>
-          <span>{('0' + Math.floor((time / 60000) % 60)).slice(-2)}:</span>
-          <span>{('0' + ((time / 1000) % 60)).slice(-2)}</span>
+          <span>{zeroFirst(time.hr)}:</span>
+          <span>{zeroFirst(time.min)}:</span>
+          <span>{zeroFirst(time.sec)}</span>
         </h1>
       </div>
       <div>
@@ -34,15 +60,18 @@ function App() {
               className="stopBt"
               onClick={() => {
                 setStatus(false);
-                setTime(0);
+                setTime({ sec: 0, min: 0, hr: 0 });
               }}
             >
               STOP
             </button>
-            <button className="waitBt" onDoubleClick={() => setStatus(false)}>
+            <button className="waitBt" onDoubleClick={waitBtn}>
               WAIT
             </button>
-            <button className="resetBt" onClick={() => setTime(0)}>
+            <button
+              className="resetBt"
+              onClick={() => setTime({ sec: 0, min: 0, hr: 0 })}
+            >
               RESET
             </button>
           </>
